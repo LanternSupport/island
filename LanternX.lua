@@ -7,7 +7,7 @@
 -- [1] Load LanternLib Framework
 local LanternLib = getgenv().LanternLib
 if not LanternLib then
-    local rawUrl = "https://raw.githubusercontent.com/LanternSupport/LanternLib/main/library/init.lua?t=" .. tostring(os.time())
+    local rawUrl = "https://raw.githubusercontent.com/LanternSupport/LanternLib/main/init.lua?t=" .. tostring(os.time())
     local s, content = pcall(function() return game:HttpGet(rawUrl) end)
     if s and content and #content > 0 and not content:find("404") then
         local fn = loadstring(content)

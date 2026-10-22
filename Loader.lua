@@ -8,7 +8,7 @@
 local LanternLib
 do
     -- Priority 1: Remote GitHub Raw (Production)
-    local rawUrl = "https://raw.githubusercontent.com/LanternSupport/LanternLib/main/library/init.lua?t=" .. os.time()
+    local rawUrl = "https://raw.githubusercontent.com/LanternSupport/LanternLib/main/init.lua?t=" .. os.time()
     local s, content = pcall(function() return game:HttpGet(rawUrl) end)
     if s and content and #content > 0 and not content:find("404") then
         local fn = loadstring(content)
