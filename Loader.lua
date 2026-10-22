@@ -14,9 +14,9 @@ if not fn then
 end
 local LanternLib = fn()
 
--- [2] Launch Script Payload Execution Helper (Strict GitHub Raw)
+-- [2] Launch Script Payload Execution Helper (Strict GitHub Raw from LanternSupport/island)
 local function executePayload()
-    local scriptUrl = "https://raw.githubusercontent.com/LanternSupport/LanternLib/main/LanternX.lua?t=" .. os.time()
+    local scriptUrl = "https://raw.githubusercontent.com/LanternSupport/island/main/LanternX.lua?t=" .. os.time()
     local payload = game:HttpGet(scriptUrl)
 
     -- Pass LanternLib in environment to prevent re-fetching
@@ -28,24 +28,6 @@ local function executePayload()
     end
 
     local execOk, runtimeErr = pcall(payloadFn)
-    if not execOk then
-        warn("[LanternX] Payload runtime error: " .. tostring(runtimeErr))
-    end
-end
-
-    if not payload then
-        error("[LanternX] Critical: Could not download LanternX.lua payload from GitHub.", 2)
-    end
-
-    -- Pass LanternLib in environment to prevent re-fetching
-    getgenv().LanternLib = LanternLib
-
-    local fn, compileErr = loadstring(payload)
-    if not fn then
-        error("[LanternX] Payload compilation error: " .. tostring(compileErr), 2)
-    end
-
-    local execOk, runtimeErr = pcall(fn)
     if not execOk then
         warn("[LanternX] Payload runtime error: " .. tostring(runtimeErr))
     end
