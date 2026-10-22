@@ -2,67 +2,36 @@
 -- LANTERNX - OFFICIAL PRODUCTION LOADER (Loader.lua)
 -- Framework: LanternLib Modern Dark Cyan Edition
 -- Target Game: Roblox Islands
+-- Mode: 100% Strict GitHub Raw
 -- ============================================================================
 
--- [1] Load LanternLib Master Framework
-local LanternLib
-do
-    -- Priority 1: Remote GitHub Raw (Production)
-    local rawUrl = "https://raw.githubusercontent.com/LanternSupport/LanternLib/main/init.lua?t=" .. os.time()
-    local s, content = pcall(function() return game:HttpGet(rawUrl) end)
-    if s and content and #content > 0 and not content:find("404") then
-        local fn = loadstring(content)
-        if fn then LanternLib = fn() end
+-- [1] Load LanternLib Master Framework (Strict GitHub Raw)
+local rawUrl = "https://raw.githubusercontent.com/LanternSupport/LanternLib/main/init.lua?t=" .. os.time()
+local content = game:HttpGet(rawUrl)
+local fn, compileErr = loadstring(content)
+if not fn then
+    error("[LanternX] Critical: Failed to compile LanternLib from GitHub: " .. tostring(compileErr), 2)
+end
+local LanternLib = fn()
+
+-- [2] Launch Script Payload Execution Helper (Strict GitHub Raw)
+local function executePayload()
+    local scriptUrl = "https://raw.githubusercontent.com/LanternSupport/LanternLib/main/LanternX.lua?t=" .. os.time()
+    local payload = game:HttpGet(scriptUrl)
+
+    -- Pass LanternLib in environment to prevent re-fetching
+    getgenv().LanternLib = LanternLib
+
+    local payloadFn, payloadErr = loadstring(payload)
+    if not payloadFn then
+        error("[LanternX] Payload compilation error: " .. tostring(payloadErr), 2)
     end
 
-    -- Priority 2: Local Workspace Fallback (for local testing before push)
-    if not LanternLib and readfile and isfile then
-        local localPaths = {
-            "LanternLib/library/init.lua",
-            "library/init.lua"
-        }
-        for _, p in ipairs(localPaths) do
-            if isfile(p) then
-                local fn = loadstring(readfile(p))
-                if fn then LanternLib = fn(); break end
-            end
-        end
-    end
-
-    if not LanternLib then
-        error("[LanternX] Critical: Failed to load LanternLib framework. Please check your internet connection.", 2)
+    local execOk, runtimeErr = pcall(payloadFn)
+    if not execOk then
+        warn("[LanternX] Payload runtime error: " .. tostring(runtimeErr))
     end
 end
-
--- [2] Launch Script Payload Execution Helper
-local function executePayload()
-    local payload = nil
-
-    -- 1. Check local file first (for testing)
-    if readfile and isfile then
-        local localPaths = {
-            "LanternLib/LanternX.lua",
-            "LanternX.lua"
-        }
-        for _, p in ipairs(localPaths) do
-            if isfile(p) then
-                local src = readfile(p)
-                if src and #src > 0 then
-                    payload = src
-                    break
-                end
-            end
-        end
-    end
-
-    -- 2. Fetch from GitHub Raw
-    if not payload then
-        local scriptUrl = "https://raw.githubusercontent.com/LanternSupport/LanternLib/main/LanternX.lua?t=" .. os.time()
-        local s, content = pcall(function() return game:HttpGet(scriptUrl) end)
-        if s and content and #content > 0 and not content:find("404") then
-            payload = content
-        end
-    end
 
     if not payload then
         error("[LanternX] Critical: Could not download LanternX.lua payload from GitHub.", 2)

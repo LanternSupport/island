@@ -2,24 +2,19 @@
 -- LANTERNX - ISLANDS AUTOMATION SCRIPT
 -- Framework: LanternLib Modern Dark Cyan Edition
 -- Target Game: Roblox Islands
+-- Mode: 100% Strict GitHub Raw
 -- ============================================================================
 
--- [1] Load LanternLib Framework
+-- [1] Load LanternLib Framework (Strict GitHub Raw)
 local LanternLib = getgenv().LanternLib
 if not LanternLib then
     local rawUrl = "https://raw.githubusercontent.com/LanternSupport/LanternLib/main/init.lua?t=" .. tostring(os.time())
-    local s, content = pcall(function() return game:HttpGet(rawUrl) end)
-    if s and content and #content > 0 and not content:find("404") then
-        local fn = loadstring(content)
-        if fn then LanternLib = fn() end
+    local content = game:HttpGet(rawUrl)
+    local fn = loadstring(content)
+    if not fn then
+        error("[LanternX] Critical: Failed to compile LanternLib from GitHub.", 2)
     end
-    if not LanternLib and readfile and isfile and isfile("LanternLib/library/init.lua") then
-        local fn = loadstring(readfile("LanternLib/library/init.lua"))
-        if fn then LanternLib = fn() end
-    end
-    if not LanternLib then
-        error("[LanternX] Critical: Failed to load LanternLib framework.", 2)
-    end
+    LanternLib = fn()
 end
 
 local Library      = LanternLib:GetUI()
