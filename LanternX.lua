@@ -1,25 +1,8 @@
--- ============================================================================
--- LANTERNX - ISLANDS AUTOMATION SCRIPT
--- Framework: LanternLib Modern Dark Cyan Edition
--- Target Game: Roblox Islands
--- Mode: 100% Strict GitHub Raw
--- ============================================================================
+local repo = "https://raw.githubusercontent.com/LanternSupport/LanternLib/main/"
 
--- [1] Load LanternLib Framework (Strict GitHub Raw)
-local LanternLib = getgenv().LanternLib
-if not LanternLib then
-    local rawUrl = "https://raw.githubusercontent.com/LanternSupport/LanternLib/main/init.lua?t=" .. tostring(os.time())
-    local content = game:HttpGet(rawUrl)
-    local fn = loadstring(content)
-    if not fn then
-        error("[LanternX] Critical: Failed to compile LanternLib from GitHub.", 2)
-    end
-    LanternLib = fn()
-end
-
-local Library      = LanternLib:GetUI()
-local ThemeManager = LanternLib:GetThemeManager()
-local SaveManager  = LanternLib:GetSaveManager()
+local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
+local ThemeManager = loadstring(game:HttpGet(repo .. "addons/ThemeManager.lua"))()
+local SaveManager = loadstring(game:HttpGet(repo .. "addons/SaveManager.lua"))()
 
 local Options = Library.Options
 local Toggles = Library.Toggles
@@ -2015,11 +1998,8 @@ local BlueprintPart, BlueprintBox, BlueprintHandles = nil, nil, nil
 local SavedBlueprintPart, SavedBlueprintBox, SavedBlueprintHandles, SavedBlueprintFolder = nil, nil, nil, nil
 
 
-local BlueprintDir = "LanternLib/blueprints"
-pcall(function()
-    if makefolder and not isfolder("LanternLib") then makefolder("LanternLib") end
-    if makefolder and not isfolder(BlueprintDir) then makefolder(BlueprintDir) end
-end)
+local BlueprintDir = "LanternLib/Blueprints"
+if isfolder and not isfolder(BlueprintDir) then makefolder(BlueprintDir) end
 
 local function GetSavedBlueprints()
     local files = {}
@@ -4656,12 +4636,10 @@ SaveManager:SetLibrary(Library)
 SaveManager:IgnoreThemeSettings()
 SaveManager:SetIgnoreIndexes({ "MenuKeybind" })
 ThemeManager:SetFolder("LanternLib")
-SaveManager:SetFolder("LanternLib/configs")
-SaveManager:SetSubFolder("Islands")
+SaveManager:SetFolder("LanternLib/Islands")
 
 SaveManager:BuildConfigSection(Tabs.Settings)
 ThemeManager:ApplyToTab(Tabs.Settings)
-ThemeManager:LoadDefault()
 
 Library:OnUnload(function()
     Library.Unloaded = true

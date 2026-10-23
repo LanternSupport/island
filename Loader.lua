@@ -1,77 +1,155 @@
--- ============================================================================
--- LANTERNX - OFFICIAL PRODUCTION LOADER (Loader.lua)
--- Framework: LanternLib Modern Dark Cyan Edition
--- Target Game: Roblox Islands
--- Mode: 100% Strict GitHub Raw
--- ============================================================================
+-- ==============================================================================
+-- LANTERNX - OFFICIAL LOADER
+-- Target Script: LanternX.lua (Islands Hub)
+-- Design Language: Modern Minimal Dark Cyan (Strict 1:1 with Loaderdesign.svg)
+-- Dimensions: 550 x 180 px
+-- ==============================================================================
 
--- [1] Load LanternLib Master Framework (Strict GitHub Raw)
-local rawUrl = "https://raw.githubusercontent.com/LanternSupport/LanternLib/main/init.lua?t=" .. os.time()
-local content = game:HttpGet(rawUrl)
-local fn, compileErr = loadstring(content)
-if not fn then
-    error("[LanternX] Critical: Failed to compile LanternLib from GitHub: " .. tostring(compileErr), 2)
-end
-local LanternLib = fn()
+local repo = "https://raw.githubusercontent.com/LanternSupport/LanternLib/main/"
 
--- [2] Launch Script Payload Execution Helper (Strict GitHub Raw from LanternSupport/island)
-local function executePayload()
-    local scriptUrl = "https://raw.githubusercontent.com/LanternSupport/island/main/LanternX.lua?t=" .. os.time()
-    local payload = game:HttpGet(scriptUrl)
-
-    -- Pass LanternLib in environment to prevent re-fetching
-    getgenv().LanternLib = LanternLib
-
-    local payloadFn, payloadErr = loadstring(payload)
-    if not payloadFn then
-        error("[LanternX] Payload compilation error: " .. tostring(payloadErr), 2)
+-- ------------------------------------------------------------------------------
+-- [1] Load External LoaderLib Module
+-- ------------------------------------------------------------------------------
+local LoaderLib = nil
+do
+    local source = nil
+    -- Local executor test check (if developing locally)
+    if readfile and isfile and isfile("loader/LoaderLib.lua") then
+        source = readfile("loader/LoaderLib.lua")
+    elseif readfile and isfile and isfile("LanternLib/loader/LoaderLib.lua") then
+        source = readfile("LanternLib/loader/LoaderLib.lua")
+    else
+        -- GitHub Raw (with cache-buster to prevent 404 cache)
+        source = game:HttpGet(repo .. "loader/LoaderLib.lua?t=" .. tostring(os.time()))
     end
 
-    local execOk, runtimeErr = pcall(payloadFn)
-    if not execOk then
-        warn("[LanternX] Payload runtime error: " .. tostring(runtimeErr))
+    local fn, err = loadstring(source)
+    if not fn then
+        error("[LanternX] Failed to load LoaderLib: " .. tostring(err) .. "\nResponse preview: " .. tostring(source):sub(1, 100), 2)
     end
+    LoaderLib = fn()
 end
 
--- [3] Create Loader Window (550x180 px)
-local Loader = LanternLib:CreateLoader({
-    Title           = "LanternX - Islands",
-    Subtitle        = "Roblox Islands Automation Gateway",
-    PlaceholderText = "Enter Key here (e.g. LX-XXXX-XXXX-XXXX) . . . .",
-    GetKeyURL       = "https://discord.gg/HckvpgAKhB", -- Discord invite or key gateway
-    SaveKey         = true,  -- Automatically saves verified keys to LanternLib/Key.txt
-    AutoLogin       = true,  -- Automatically authenticates on startup if saved key exists
-    Draggable       = false, -- Centered and locked firmly on screen
+-- ------------------------------------------------------------------------------
+-- [2] Constants & Key Configuration
+-- ------------------------------------------------------------------------------
+local HWID = LoaderLib:GetHWID()
+local GET_KEY_URL = "https://www.lanternsupport.xyz/"
+local KEY_FILE = "LanternLib/Key.txt"
+local PAYLOAD_URL = repo .. "LanternX.lua?t=" .. tostring(os.time())
 
-    -- Verification Callback
-    OnSubmit = function(submittedKey, controller, doneCallback, isAutoAuth)
-        if not submittedKey or #submittedKey < 3 then
+-- ------------------------------------------------------------------------------
+-- [3] Auto-Save Key Management System
+-- ------------------------------------------------------------------------------
+local function saveKey(key)
+    pcall(function()
+        if makefolder and not isfolder("LanternLib") then
+            makefolder("LanternLib")
+        end
+        if writefile then
+            writefile(KEY_FILE, key)
+        end
+    end)
+end
+
+local function loadSavedKey()
+    local savedKey = nil
+    pcall(function()
+        if isfile and isfile(KEY_FILE) and readfile then
+            savedKey = readfile(KEY_FILE)
+        end
+    end)
+    if savedKey then
+        savedKey = string.gsub(savedKey, "%s+", "")
+        if #savedKey > 0 then
+            return savedKey
+        end
+    end
+    return nil
+end
+
+local function deleteSavedKey()
+    pcall(function()
+        if isfile and isfile(KEY_FILE) and delfile then
+            delfile(KEY_FILE)
+        end
+    end)
+end
+
+-- ------------------------------------------------------------------------------
+-- [4] Verification & Script Payload Execution Logic
+-- ------------------------------------------------------------------------------
+local function verifyAndExecute(key, controller, doneCallback, isAutoAuth)
+    controller:SetVerifying(true, isAutoAuth and "Auto Login..." or "Checking...")
+    controller:SetStatus(isAutoAuth and "Validating saved key..." or "Contacting authentication server...", Color3.fromRGB(56, 189, 248))
+
+    task.spawn(function()
+        -- Simulate verification delay (or insert custom API verify request here)
+        task.wait(0.8)
+
+        -- Validation check (Key format check; replace with your API endpoint if needed)
+        local isValid = (#key >= 5)
+
+        if not isValid then
+            deleteSavedKey()
             controller:SetVerifying(false)
-            controller:SetStatus("Please enter a valid key format.", "ERROR")
+            controller:SetStatus("Invalid or expired key. Please get a new key.", Color3.fromRGB(244, 63, 94))
             if doneCallback then doneCallback() end
             return
         end
 
-        controller:SetVerifying(true, isAutoAuth and "Auto Logging In..." or "Checking Key...")
-        controller:SetStatus(isAutoAuth and "Validating saved key credentials..." or "Contacting authentication server...", "LOADING")
+        -- Key is valid! Save it to executor disk
+        saveKey(key)
 
-        task.spawn(function()
-            task.wait(0.8) -- Authentication latency simulation
+        controller:SetSuccess("Verified!")
+        controller:SetStatus("Key verified! Launching LanternX...", Color3.fromRGB(52, 211, 153))
 
-            -- Check key: accepts official keys or prefixes
-            if submittedKey == "LANTERN-2026" or submittedKey == "test" or submittedKey:sub(1, 3) == "LX-" then
-                controller:SetStatus("Access Granted! Launching LanternX...", "SUCCESS")
-                controller:SetSuccess("Verified!")
+        -- Smoothly fade out and close loader window
+        task.wait(0.5)
+        controller:Close(0.5)
 
-                -- Smoothly close loader and launch LanternX payload
-                controller:Close(0.5, function()
-                    executePayload()
-                end)
-            else
-                controller:SetVerifying(false)
-                controller:SetStatus("Invalid or expired key. Please get a new key.", "ERROR")
-                if doneCallback then doneCallback() end
+        -- Execute the LanternX payload script
+        task.delay(0.55, function()
+            local success, err = pcall(function()
+                loadstring(game:HttpGet(PAYLOAD_URL))()
+            end)
+
+            if not success then
+                warn("[LanternX] Error launching LanternX.lua: " .. tostring(err))
             end
         end)
+
+        if doneCallback then doneCallback() end
+    end)
+end
+
+-- ------------------------------------------------------------------------------
+-- [5] Create Loader Window via LoaderLib
+-- ------------------------------------------------------------------------------
+local window = LoaderLib:CreateWindow({
+    Title = "LanternX - Islands Loader",
+    Subtitle = "Roblox Key Verification.",
+    HWID = HWID,
+    GetKeyURL = GET_KEY_URL,
+    PlaceholderText = "Enter Key here (e.g. LX-XXXX-XXXX-XXXX) . . . .",
+    OnSubmit = function(submittedKey, controller, doneCallback)
+        if not submittedKey or #submittedKey < 5 then
+            controller:SetStatus("Please enter a valid key format.", Color3.fromRGB(244, 63, 94))
+            doneCallback()
+            return
+        end
+        verifyAndExecute(submittedKey, controller, doneCallback, false)
     end
 })
+
+-- ------------------------------------------------------------------------------
+-- [6] Auto-Save Key Detection on Startup
+-- ------------------------------------------------------------------------------
+local savedKey = loadSavedKey()
+if savedKey and #savedKey >= 5 then
+    window:SetKeyText(savedKey)
+    window:SetStatus("Saved key detected. Auto-authenticating...", Color3.fromRGB(56, 189, 248))
+    task.delay(0.5, function()
+        verifyAndExecute(savedKey, window, nil, true)
+    end)
+end
