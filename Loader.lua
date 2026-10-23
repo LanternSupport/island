@@ -9,7 +9,12 @@ local libraryRepo = "https://raw.githubusercontent.com/LanternSupport/LanternLib
 local scriptRepo = "https://raw.githubusercontent.com/LanternSupport/island/main/"
 
 -- ------------------------------------------------------------------------------
--- [1] Constants & Key Configuration
+-- [1] Load External LoaderLib Module (From LanternLib)
+-- ------------------------------------------------------------------------------
+local LoaderLib = loadstring(game:HttpGet(libraryRepo .. "loader/LoaderLib.lua"))()
+
+-- ------------------------------------------------------------------------------
+-- [2] Constants & Key Configuration
 -- ------------------------------------------------------------------------------
 local HWID = LoaderLib:GetHWID()
 local GET_KEY_URL = "https://lanternsupport.xyz/"
@@ -59,7 +64,7 @@ end
 -- ------------------------------------------------------------------------------
 local function verifyAndExecute(key, controller, doneCallback, isAutoAuth)
     controller:SetVerifying(true, isAutoAuth and "Auto Login..." or "Checking...")
-    controller:SetStatus(isAutoAuth and "Validating saved key..." or "Contacting authentication server...", Color3.fromRGB(56, 189, 248))
+    controller:SetStatus(isAutoAuth and "Validating saved key..." or "Contacting authentication server...", Color3.fromRGB(255, 0, 0))
 
     task.spawn(function()
         -- Simulate verification delay
@@ -138,7 +143,7 @@ local window = LoaderLib:CreateWindow({
 local savedKey = loadSavedKey()
 if savedKey and #savedKey >= 5 then
     window:SetKeyText(savedKey)
-    window:SetStatus("Saved key detected. Auto-authenticating...", Color3.fromRGB(56, 189, 248))
+    window:SetStatus("Saved key detected. Auto-authenticating...", Color3.fromRGB(255, 0, 0))
     task.delay(0.5, function()
         verifyAndExecute(savedKey, window, nil, true)
     end)

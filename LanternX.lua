@@ -2426,8 +2426,8 @@ local function UpdateBlueprintTrackerUI(visible)
     local topAccent = Instance.new("Frame", inlineBorder)
     topAccent.Size = UDim2.new(1, 0, 0, 2)
     topAccent.Position = UDim2.new(0, 0, 0, 0)
-    topAccent.BackgroundColor3 = Color3.fromRGB(0, 146, 214) -- Linoria Blue
-    pcall(function() topAccent.BackgroundColor3 = Library.AccentColor or Color3.fromRGB(0, 146, 214) end)
+    topAccent.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Red Accent
+    pcall(function() topAccent.BackgroundColor3 = Library.AccentColor or Color3.fromRGB(255, 0, 0) end)
     topAccent.BorderSizePixel = 0
     
     local title = Instance.new("TextLabel", inlineBorder)
@@ -2451,8 +2451,8 @@ local function UpdateBlueprintTrackerUI(visible)
     scroll.Position = UDim2.new(0, 5, 0, 30)
     scroll.BackgroundTransparency = 1
     scroll.ScrollBarThickness = 2
-    scroll.ScrollBarImageColor3 = Color3.fromRGB(0, 146, 214)
-    pcall(function() scroll.ScrollBarImageColor3 = Library.AccentColor or Color3.fromRGB(0, 146, 214) end)
+    scroll.ScrollBarImageColor3 = Color3.fromRGB(255, 0, 0)
+    pcall(function() scroll.ScrollBarImageColor3 = Library.AccentColor or Color3.fromRGB(255, 0, 0) end)
     
     local list = Instance.new("UIListLayout", scroll)
     list.SortOrder = Enum.SortOrder.LayoutOrder
