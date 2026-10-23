@@ -107,22 +107,26 @@ function LanternMovement.Cancel()
         LanternMovement.CurrentTween = nil
     end
     if LanternMovement.NoclipConn then
-        LanternMovement.NoclipConn:Disconnect()
+        pcall(function() LanternMovement.NoclipConn:Disconnect() end)
         LanternMovement.NoclipConn = nil
-        local char = LocalPlayer.Character
-        if char then
-            for _, part in pairs(char:GetChildren()) do
-                if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-                    part.CanCollide = true
+        pcall(function()
+            local char = LocalPlayer and LocalPlayer.Character
+            if char and typeof(char) == "Instance" and char.GetChildren then
+                for _, part in ipairs(char:GetChildren()) do
+                    if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                        part.CanCollide = true
+                    end
                 end
             end
+        end)
+    end
+    pcall(function()
+        local hrp = LocalPlayer and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local bv = hrp:FindFirstChild("LanternUniversalBV")
+            if bv then bv:Destroy() end
         end
-    end
-    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if hrp then
-        local bv = hrp:FindFirstChild("LanternUniversalBV")
-        if bv then bv:Destroy() end
-    end
+    end)
 end
 
 function LanternMovement.MoveTo(targetPos, speed, lookAtPos)

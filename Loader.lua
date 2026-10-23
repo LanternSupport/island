@@ -111,8 +111,10 @@ local function verifyAndExecute(key, controller, doneCallback, isAutoAuth)
 
         -- Execute the LanternX payload script from LanternSupport/island
         task.delay(0.55, function()
-            local success, err = pcall(function()
+            local success, err = xpcall(function()
                 loadstring(game:HttpGet(PAYLOAD_URL))()
+            end, function(e)
+                return tostring(e) .. "\n" .. debug.traceback(nil, 2)
             end)
 
             if not success then
