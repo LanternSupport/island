@@ -1,26 +1,27 @@
 -- ==============================================================================
--- LANTERNX - OFFICIAL LOADER
--- Target Script: LanternX.lua (Islands Hub)
--- Design Language: Modern Minimal Dark Cyan (Strict 1:1 with Loaderdesign.svg)
+-- LANTERNX - OFFICIAL ISLANDS LOADER
+-- Repository: LanternSupport/island
+-- UI Library: LanternSupport/LanternLib
 -- Dimensions: 550 x 180 px
 -- ==============================================================================
 
-local repo = "https://raw.githubusercontent.com/LanternSupport/LanternLib/main/"
+local libraryRepo = "https://raw.githubusercontent.com/LanternSupport/LanternLib/main/"
+local scriptRepo = "https://raw.githubusercontent.com/LanternSupport/island/main/"
 
 -- ------------------------------------------------------------------------------
--- [1] Load External LoaderLib Module
+-- [1] Load External LoaderLib Module (From LanternLib)
 -- ------------------------------------------------------------------------------
 local LoaderLib = nil
 do
     local source = nil
-    -- Local executor test check (if developing locally)
+    -- Local developer check
     if readfile and isfile and isfile("loader/LoaderLib.lua") then
         source = readfile("loader/LoaderLib.lua")
     elseif readfile and isfile and isfile("LanternLib/loader/LoaderLib.lua") then
         source = readfile("LanternLib/loader/LoaderLib.lua")
     else
-        -- GitHub Raw (with cache-buster to prevent 404 cache)
-        source = game:HttpGet(repo .. "loader/LoaderLib.lua?t=" .. tostring(os.time()))
+        -- GitHub Raw from LanternLib (with cache-buster)
+        source = game:HttpGet(libraryRepo .. "loader/LoaderLib.lua?t=" .. tostring(os.time()))
     end
 
     local fn, err = loadstring(source)
@@ -36,7 +37,7 @@ end
 local HWID = LoaderLib:GetHWID()
 local GET_KEY_URL = "https://www.lanternsupport.xyz/"
 local KEY_FILE = "LanternLib/Key.txt"
-local PAYLOAD_URL = repo .. "LanternX.lua?t=" .. tostring(os.time())
+local PAYLOAD_URL = scriptRepo .. "LanternX.lua?t=" .. tostring(os.time())
 
 -- ------------------------------------------------------------------------------
 -- [3] Auto-Save Key Management System
@@ -108,7 +109,7 @@ local function verifyAndExecute(key, controller, doneCallback, isAutoAuth)
         task.wait(0.5)
         controller:Close(0.5)
 
-        -- Execute the LanternX payload script
+        -- Execute the LanternX payload script from LanternSupport/island
         task.delay(0.55, function()
             local success, err = pcall(function()
                 loadstring(game:HttpGet(PAYLOAD_URL))()
