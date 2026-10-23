@@ -20,13 +20,13 @@ do
     elseif readfile and isfile and isfile("LanternLib/loader/LoaderLib.lua") then
         source = readfile("LanternLib/loader/LoaderLib.lua")
     else
-        -- GitHub Raw from LanternLib (with cache-buster)
-        source = game:HttpGet(libraryRepo .. "loader/LoaderLib.lua?t=" .. tostring(os.time()))
+        -- GitHub Raw from LanternLib
+        source = game:HttpGet(libraryRepo .. "loader/LoaderLib.lua")
     end
 
     local fn, err = loadstring(source)
     if not fn then
-        error("[LanternX] Failed to load LoaderLib: " .. tostring(err) .. "\nResponse preview: " .. tostring(source):sub(1, 100), 2)
+        error("[LanternX] Failed to load LoaderLib: " .. tostring(err), 2)
     end
     LoaderLib = fn()
 end
@@ -37,7 +37,7 @@ end
 local HWID = LoaderLib:GetHWID()
 local GET_KEY_URL = "https://www.lanternsupport.xyz/"
 local KEY_FILE = "LanternLib/Key.txt"
-local PAYLOAD_URL = scriptRepo .. "LanternX.lua?t=" .. tostring(os.time())
+local PAYLOAD_URL = scriptRepo .. "LanternX.lua"
 
 -- ------------------------------------------------------------------------------
 -- [3] Auto-Save Key Management System
@@ -85,10 +85,10 @@ local function verifyAndExecute(key, controller, doneCallback, isAutoAuth)
     controller:SetStatus(isAutoAuth and "Validating saved key..." or "Contacting authentication server...", Color3.fromRGB(56, 189, 248))
 
     task.spawn(function()
-        -- Simulate verification delay (or insert custom API verify request here)
-        task.wait(0.8)
+        -- Simulate verification delay
+        task.wait(0.5)
 
-        -- Validation check (Key format check; replace with your API endpoint if needed)
+        -- Validation check (Key format check)
         local isValid = (#key >= 5)
 
         if not isValid then
@@ -105,20 +105,30 @@ local function verifyAndExecute(key, controller, doneCallback, isAutoAuth)
         controller:SetSuccess("Verified!")
         controller:SetStatus("Key verified! Launching LanternX...", Color3.fromRGB(52, 211, 153))
 
-        -- Smoothly fade out and close loader window
-        task.wait(0.5)
-        controller:Close(0.5)
+        -- Smoothly close loader window
+        task.wait(0.4)
+        controller:Close(0.4)
 
         -- Execute the LanternX payload script from LanternSupport/island
-        task.delay(0.55, function()
-            local success, err = xpcall(function()
-                loadstring(game:HttpGet(PAYLOAD_URL))()
-            end, function(e)
-                return tostring(e) .. "\n" .. debug.traceback(nil, 2)
+        task.spawn(function()
+            local fetchOk, scriptContent = pcall(function()
+                return game:HttpGet(PAYLOAD_URL)
             end)
 
-            if not success then
-                warn("[LanternX] Error launching LanternX.lua: " .. tostring(err))
+            if not fetchOk or not scriptContent or #scriptContent == 0 then
+                warn("[LanternX] Network error: Failed to download LanternX.lua from GitHub.")
+                return
+            end
+
+            local payloadFn, compileErr = loadstring(scriptContent)
+            if not payloadFn then
+                warn("[LanternX] Compile error in LanternX.lua: " .. tostring(compileErr))
+                return
+            end
+
+            local runOk, runErr = pcall(payloadFn)
+            if not runOk then
+                warn("[LanternX] Runtime error in LanternX.lua: " .. tostring(runErr))
             end
         end)
 
