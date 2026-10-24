@@ -1,5 +1,5 @@
 -- ==============================================================================
--- LANTERNX - OFFICIAL ISLANDS LOADER
+-- LANTERNX - OFFICIAL ISLANDS LOADER (SUPABASE CLOUD KEY SYSTEM)
 -- Repository: LanternSupport/island
 -- UI Library: LanternSupport/LanternLib
 -- Dimensions: 550 x 180 px
@@ -14,15 +14,22 @@ local scriptRepo = "https://raw.githubusercontent.com/LanternSupport/island/main
 local LoaderLib = loadstring(game:HttpGet(libraryRepo .. "loader/LoaderLib.lua"))()
 
 -- ------------------------------------------------------------------------------
--- [2] Constants & Key Configuration
+-- [2] Constants & Supabase Cloud Configuration
 -- ------------------------------------------------------------------------------
 local HWID = LoaderLib:GetHWID()
-local GET_KEY_URL = "https://lanternsupport.xyz/"
+
+-- URL ของหน้าเว็บรับคีย์ของคุณ (แนบ HWID ไปอัตโนมัติ เพื่อนำไปล็อคเครื่อง)
+local GET_KEY_URL = "https://lanternsupport.xyz/?hwid=" .. tostring(HWID) .. "#getkey"
+
 local KEY_FILE = "LanternLib/Key.txt"
 local PAYLOAD_URL = scriptRepo .. "LanternX.lua"
 
+-- ข้อมูลเชื่อมต่อ Supabase Database
+local SUPABASE_REST_URL = "https://fvptksmyvhhmhpgasjiq.supabase.co/rest/v1/user_keys"
+local SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2cHRrc215dmhobWhwZ2FzamlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI3ODMxNjEsImV4cCI6MjEwODM1OTE2MX0.mC4fp9VldEEYG5uJlgrM4VxRDjMSJd7uUElky-T4YFg"
+
 -- ------------------------------------------------------------------------------
--- [2] Auto-Save Key Management System
+-- [3] Auto-Save Key Management System
 -- ------------------------------------------------------------------------------
 local function saveKey(key)
     pcall(function()
@@ -59,39 +66,110 @@ local function deleteSavedKey()
     end)
 end
 
+-- ฟังก์ชันแปลง ISO 8601 Timestamp (UTC) เป็น Unix Timestamp
+local function parseIsoTimestamp(isoStr)
+    if not isoStr then return 0 end
+    local pattern = "(%d+)%-(%d+)%-(%d+)T(%d+):(%d+):(%d+)"
+    local year, month, day, hour, min, sec = isoStr:match(pattern)
+    if not year then return 0 end
+    return os.time({
+        year = tonumber(year),
+        month = tonumber(month),
+        day = tonumber(day),
+        hour = tonumber(hour),
+        min = tonumber(min),
+        sec = tonumber(sec)
+    })
+end
+
 -- ------------------------------------------------------------------------------
--- [3] Verification & Script Payload Execution Logic
+-- [4] Verification via Supabase Database (HWID Lock + Expiry Check)
 -- ------------------------------------------------------------------------------
 local function verifyAndExecute(key, controller, doneCallback, isAutoAuth)
     controller:SetVerifying(true, isAutoAuth and "Auto Login..." or "Checking...")
-    controller:SetStatus(isAutoAuth and "Validating saved key..." or "Contacting authentication server...", Color3.fromRGB(255, 0, 0))
+    controller:SetStatus(isAutoAuth and "Validating saved key..." or "Contacting Supabase Cloud...", Color3.fromRGB(255, 0, 0))
 
     task.spawn(function()
-        -- Simulate verification delay
-        task.wait(0.5)
+        task.wait(0.2)
 
-        -- Validation check (Key format check)
-        local isValid = (#key >= 5)
+        local HttpService = game:GetService("HttpService")
+        local cleanKey = string.gsub(key, "%s+", "")
+        local encodedKey = HttpService:UrlEncode(cleanKey)
+        
+        -- ส่ง API query ไปยัง Supabase (แนบ apikey ไปใน URL ทำให้รองรับ Executor ทุกตัวรวมถึง game:HttpGet)
+        local queryUrl = SUPABASE_REST_URL .. "?apikey=" .. SUPABASE_KEY .. "&key=eq." .. encodedKey .. "&select=*"
 
-        if not isValid then
-            deleteSavedKey()
+        local req = (syn and syn.request) or (http and http.request) or http_request or request
+        local success, response = pcall(function()
+            if req then
+                return req({
+                    Url = queryUrl,
+                    Method = "GET",
+                    Headers = {
+                        ["apikey"] = SUPABASE_KEY,
+                        ["Authorization"] = "Bearer " .. SUPABASE_KEY
+                    }
+                })
+            else
+                local body = game:HttpGet(queryUrl)
+                return { StatusCode = 200, Body = body }
+            end
+        end)
+
+        if not success or not response or response.StatusCode ~= 200 then
             controller:SetVerifying(false)
-            controller:SetStatus("Invalid or expired key. Please get a new key.", Color3.fromRGB(244, 63, 94))
+            controller:SetStatus("Connection error to auth server. Try again.", Color3.fromRGB(244, 63, 94))
             if doneCallback then doneCallback() end
             return
         end
 
-        -- Key is valid! Save it to executor disk
-        saveKey(key)
+        local parseOk, records = pcall(function()
+            return HttpService:JSONDecode(response.Body)
+        end)
+
+        if not parseOk or type(records) ~= "table" or #records == 0 then
+            deleteSavedKey()
+            controller:SetVerifying(false)
+            controller:SetStatus("Invalid Key! Key not found in system.", Color3.fromRGB(244, 63, 94))
+            if doneCallback then doneCallback() end
+            return
+        end
+
+        local record = records[1]
+
+        -- [1] ตรวจสอบการล็อค HWID (HWID Locking Verification)
+        if tostring(record.hwid) ~= tostring(HWID) then
+            deleteSavedKey()
+            controller:SetVerifying(false)
+            controller:SetStatus("HWID Mismatch! Key locked to another device.", Color3.fromRGB(244, 63, 94))
+            if doneCallback then doneCallback() end
+            return
+        end
+
+        -- [2] ตรวจสอบวันหมดอายุ (24-Hour Expiration Check)
+        if record.expires_at then
+            local expiryUnix = parseIsoTimestamp(record.expires_at)
+            local currentUnix = os.time()
+            if expiryUnix > 0 and currentUnix > expiryUnix then
+                deleteSavedKey()
+                controller:SetVerifying(false)
+                controller:SetStatus("Key Expired! Please get a new 24h key.", Color3.fromRGB(244, 63, 94))
+                if doneCallback then doneCallback() end
+                return
+            end
+        end
+
+        -- คีย์ถูกต้อง 100% และ HWID ตรงกับเครื่องนี้! บันทึกคีย์ลงเครื่อง
+        saveKey(cleanKey)
 
         controller:SetSuccess("Verified!")
         controller:SetStatus("Key verified! Launching LanternX...", Color3.fromRGB(52, 211, 153))
 
-        -- Smoothly close loader window
+        -- ปิดหน้าต่าง Loader อย่างนุ่มนวล
         task.wait(0.4)
         controller:Close(0.4)
 
-        -- Execute the LanternX payload script from LanternSupport/island
+        -- รันสคริปต์หลัก (LanternX.lua) จาก GitHub
         task.spawn(function()
             local fetchOk, scriptContent = pcall(function()
                 return game:HttpGet(PAYLOAD_URL)
@@ -119,14 +197,14 @@ local function verifyAndExecute(key, controller, doneCallback, isAutoAuth)
 end
 
 -- ------------------------------------------------------------------------------
--- [4] Create Loader Window via LoaderLib
+-- [5] Create Loader Window via LoaderLib
 -- ------------------------------------------------------------------------------
 local window = LoaderLib:CreateWindow({
     Title = "LanternX - Islands Loader",
     Subtitle = "Roblox Key Verification.",
     HWID = HWID,
     GetKeyURL = GET_KEY_URL,
-    PlaceholderText = "Enter Key here (e.g. LX-XXXX-XXXX-XXXX) . . . .",
+    PlaceholderText = "Enter Key here (e.g. ISLANDS-XXXX-XXXX-XXXX) . . . .",
     OnSubmit = function(submittedKey, controller, doneCallback)
         if not submittedKey or #submittedKey < 5 then
             controller:SetStatus("Please enter a valid key format.", Color3.fromRGB(244, 63, 94))
@@ -138,7 +216,7 @@ local window = LoaderLib:CreateWindow({
 })
 
 -- ------------------------------------------------------------------------------
--- [5] Auto-Save Key Detection on Startup
+-- [6] Auto-Save Key Detection on Startup
 -- ------------------------------------------------------------------------------
 local savedKey = loadSavedKey()
 if savedKey and #savedKey >= 5 then
