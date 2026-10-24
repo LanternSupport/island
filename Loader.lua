@@ -137,13 +137,40 @@ local function verifyAndExecute(key, controller, doneCallback, isAutoAuth)
 
         local record = records[1]
 
-        -- [1] ตรวจสอบการล็อค HWID (HWID Locking Verification)
-        if tostring(record.hwid) ~= tostring(HWID) then
-            deleteSavedKey()
-            controller:SetVerifying(false)
-            controller:SetStatus("HWID Mismatch! Key locked to another device.", Color3.fromRGB(244, 63, 94))
-            if doneCallback then doneCallback() end
-            return
+        -- [1] ตรวจสอบการล็อค HWID (HWID Locking Verification with Auto-Binding on First Use)
+        local isUnbound = (record.hwid == nil or record.hwid == "" or record.hwid == "UNBOUND" or tostring(record.hwid) == "userdata: NULL" or tostring(record.hwid) == "null")
+
+        if isUnbound then
+            -- คีย์นี้รับมาจากหน้าเว็บโดยตรง (ยังไม่เคยผูกกับใคร)! ทำการล็อคผูกกับ HWID ของเครื่องนี้ทันที
+            controller:SetStatus("First use detected! Binding key to this device...", Color3.fromRGB(255, 180, 0))
+
+            local patchUrl = SUPABASE_REST_URL .. "?apikey=" .. SUPABASE_KEY .. "&key=eq." .. encodedKey
+            local patchBody = HttpService:JSONEncode({ hwid = tostring(HWID) })
+
+            pcall(function()
+                if req then
+                    req({
+                        Url = patchUrl,
+                        Method = "PATCH",
+                        Headers = {
+                            ["apikey"] = SUPABASE_KEY,
+                            ["Authorization"] = "Bearer " .. SUPABASE_KEY,
+                            ["Content-Type"] = "application/json",
+                            ["Prefer"] = "return=minimal"
+                        },
+                        Body = patchBody
+                    })
+                end
+            end)
+        else
+            -- คีย์นี้เคยถูกผูกกับเครื่องไว้แล้ว! ตรวจสอบว่าตรงกับ HWID เครื่องนี้หรือไม่
+            if tostring(record.hwid) ~= tostring(HWID) then
+                deleteSavedKey()
+                controller:SetVerifying(false)
+                controller:SetStatus("HWID Mismatch! Key locked to another device.", Color3.fromRGB(244, 63, 94))
+                if doneCallback then doneCallback() end
+                return
+            end
         end
 
         -- [2] ตรวจสอบวันหมดอายุ (24-Hour Expiration Check)
